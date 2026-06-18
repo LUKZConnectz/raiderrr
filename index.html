@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rider Fuel Pixel Dashboard</title>
+  <title>Rider Fuel Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -14,7 +14,7 @@
       darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: { pixel: ['"Press Start 2P"', 'monospace'], sans: ['Inter', 'system-ui', 'sans-serif'] },
+          fontFamily: { pixel: ['Inter', 'system-ui', 'sans-serif'], sans: ['Inter', 'system-ui', 'sans-serif'] },
           boxShadow: { pixel: '6px 6px 0px 0px rgba(15,23,42,.9)', pixelLight: '4px 4px 0px 0px rgba(56,189,248,.9)' }
         }
       }
@@ -22,20 +22,20 @@
   </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="bg-amber-50 text-slate-900 transition dark:bg-slate-950 dark:text-slate-100">
-  <section id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 px-4 py-8 backdrop-blur">
-    <div class="pixel-card w-full max-w-5xl bg-white p-5 dark:bg-slate-900">
+<body class="text-slate-900 transition dark:bg-slate-950 dark:text-slate-100">
+  <section id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-white/90 px-4 py-8 backdrop-blur">
+    <div class="pixel-card w-full max-w-5xl p-5 dark:bg-slate-900">
       <div class="grid gap-6 lg:grid-cols-[.95fr_1.05fr] lg:items-center">
-        <div class="rounded-3xl border-4 border-slate-900 bg-gradient-to-br from-emerald-200 via-cyan-200 to-yellow-200 p-6 text-slate-900">
+        <div class="rounded-[32px] bg-gradient-to-br from-violet-100 via-white to-orange-50 p-6 text-slate-900 shadow-sm">
           <p class="font-pixel text-xs">RIDER ACCESS</p>
           <h1 class="mt-4 text-4xl font-black leading-tight">เข้าสู่ระบบไรเดอร์</h1>
           <p class="mt-4 font-bold">แยกข้อมูลรายคนด้วยโปรไฟล์ส่วนตัว และมีโหมดหลังบ้านสำหรับแอดมินดูภาพรวมผู้ใช้ทั้งหมด</p>
           <div class="mt-5 grid gap-3 text-sm font-black">
-            <div class="rounded-2xl border-3 border-slate-900 bg-white/70 p-3">👤 rider@demo.com / rider123</div>
-            <div class="rounded-2xl border-3 border-slate-900 bg-white/70 p-3">🛠️ admin@demo.com / admin123</div>
+            <div class="rounded-2xl border border-slate-200 bg-white/80 p-3">👤 rider@demo.com / rider123</div>
+            <div class="rounded-2xl border border-slate-200 bg-white/80 p-3">🛠️ admin@demo.com / admin123</div>
           </div>
         </div>
         <form id="loginForm" class="space-y-4">
@@ -53,15 +53,15 @@
   </section>
   <div class="fixed inset-0 -z-10 pixel-grid opacity-50"></div>
   <main class="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-    <header class="pixel-card bg-white/90 p-5 dark:bg-slate-900/90">
+    <header class="hero-panel p-5 dark:bg-slate-900/90">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <p class="font-pixel text-xs text-emerald-600 dark:text-emerald-300">GRAB RIDER LEDGER</p>
-          <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-5xl">บันทึกค่ารอบ + ค่าน้ำมัน</h1>
+          <p class="hero-kicker text-xs dark:text-violet-300">GRAB RIDER LEDGER</p>
+          <h1 class="hero-title mt-3 text-3xl font-black tracking-tight sm:text-5xl">บันทึกค่ารอบ + ค่าน้ำมัน</h1>
           <p class="mt-3 max-w-3xl text-slate-600 dark:text-slate-300">คำนวณกำไรสุทธิจากทุกงาน ส่งของกี่กิโล ใช้น้ำมันเท่าไร เติมน้ำมันคุ้มไหม พร้อม Profile Analytics, OCR จากรูปแคปหน้าจอ, Export Excel/PDF และราคาน้ำมันแบบ Real-time</p>
         </div>
-        <div class="flex flex-wrap gap-3">
-          <div class="rounded-2xl border-4 border-slate-900 bg-emerald-100 px-4 py-2 font-black text-slate-900 shadow-pixelLight">
+        <div class="hero-actions flex flex-wrap gap-3">
+          <div class="soft-chip px-4 py-2 font-black">
             <span id="currentUserName">Guest</span><br><small id="currentUserRole">ยังไม่เข้าสู่ระบบ</small>
           </div>
           <button id="logoutBtn" class="pixel-btn bg-red-200">🚪 ออก</button>
@@ -95,7 +95,7 @@
           <label>อัตราสิ้นเปลือง (กม./ลิตร)<input id="efficiency" type="number" min="1" step="0.1" value="40" class="input" required></label>
           <label>ราคาน้ำมัน/ลิตร<input id="fuelPrice" type="number" min="0" step="0.01" class="input" required></label>
         </div>
-        <button class="pixel-btn mt-5 w-full bg-emerald-300">✅ บันทึกค่ารอบ</button>
+        <button class="pixel-btn primary-action mt-5 w-full">✅ บันทึกค่ารอบ</button>
       </form>
 
       <div class="space-y-5">
@@ -106,7 +106,7 @@
             <label>ราคาลิตร<input id="fillPrice" type="number" class="input"></label>
             <label>กินน้ำมัน<input id="fillEff" type="number" class="input" value="40"></label>
           </div>
-          <div id="fillResult" class="mt-4 rounded-xl border-4 border-slate-900 bg-yellow-100 p-4 font-bold dark:text-slate-900">เติมแล้ววิ่งได้ประมาณ 0 กม.</div>
+          <div id="fillResult" class="mt-4 rounded-xl border border-slate-200 bg-yellow-100 p-4 font-bold dark:text-slate-900">เติมแล้ววิ่งได้ประมาณ 0 กม.</div>
         </section>
         <section class="pixel-card bg-white p-5 dark:bg-slate-900">
           <div class="flex items-center justify-between"><h2 class="font-pixel text-sm">📊 สรุป</h2><div class="flex gap-2"><button id="excelBtn" class="pixel-btn bg-green-300 text-xs">Excel</button><button id="pdfBtn" class="pixel-btn bg-red-300 text-xs">PDF</button></div></div>
@@ -124,13 +124,13 @@
       <aside class="pixel-card bg-white p-5 dark:bg-slate-900">
         <p class="font-pixel text-xs text-sky-600 dark:text-sky-300">PROFILE</p>
         <h2 class="mt-3 text-3xl font-black">ไรเดอร์โปรไฟล์</h2>
-        <div class="mt-4 space-y-3 rounded-2xl border-4 border-slate-900 bg-amber-100 p-4 text-slate-900">
+        <div class="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-amber-100 p-4 text-slate-900">
           <label>ชื่อที่แสดง<input id="profileName" class="input" placeholder="ชื่อไรเดอร์"></label>
           <label>เบอร์โทร<input id="profilePhone" class="input" placeholder="08x-xxx-xxxx"></label>
           <label>ทะเบียนรถ<input id="profileVehicle" class="input" placeholder="เช่น 1กข 1234"></label>
           <button id="saveProfileBtn" class="pixel-btn w-full bg-cyan-300">💾 บันทึกโปรไฟล์</button>
         </div>
-        <div class="mt-5 rounded-2xl border-4 border-slate-900 bg-gradient-to-br from-cyan-200 to-emerald-200 p-5 text-slate-900">
+        <div class="mt-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-200 to-emerald-200 p-5 text-slate-900">
           <span class="text-sm font-black uppercase tracking-widest">ผู้ใช้แบบเรียลไทม์</span>
           <strong id="profileRiderCount" class="mt-2 block text-5xl font-black">0</strong>
           <small id="riderPulse" class="font-bold">Live +0 ใน 5 วินาทีล่าสุด</small>
@@ -157,7 +157,7 @@
       <section class="pixel-card bg-white p-5 dark:bg-slate-900">
         <p class="font-pixel text-xs text-violet-600 dark:text-violet-300">📈 30 DAYS TREND</p>
         <h2 class="mt-2 text-2xl font-black">แนวโน้มกำไรรายวัน</h2>
-        <svg viewBox="0 0 300 120" class="mt-5 h-56 w-full rounded-2xl border-4 border-slate-900 bg-slate-950 p-3" preserveAspectRatio="none">
+        <svg viewBox="0 0 300 120" class="mt-5 h-56 w-full rounded-2xl border border-slate-200 bg-slate-950 p-3" preserveAspectRatio="none">
           <polyline id="dailyTrend" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="0,110 300,110"></polyline>
         </svg>
         <div class="mt-4 grid gap-3 sm:grid-cols-3">
@@ -199,7 +199,7 @@
     <section id="adminPage" class="mt-5 hidden pixel-card bg-white p-5 dark:bg-slate-900">
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><p class="font-pixel text-xs text-violet-600 dark:text-violet-300">ADMIN BACK OFFICE</p><h2 class="mt-2 text-2xl font-black">หลังบ้านผู้ดูแลระบบ</h2></div>
-        <span class="rounded-full border-4 border-slate-900 bg-violet-100 px-4 py-2 font-black text-slate-900">เฉพาะ Admin</span>
+        <span class="rounded-full border border-slate-200 bg-violet-100 px-4 py-2 font-black text-slate-900">เฉพาะ Admin</span>
       </div>
       <div class="grid gap-3 md:grid-cols-3">
         <div class="summary"><span>ผู้ใช้ทั้งหมด</span><b id="adminUserCount">0</b></div>
@@ -208,7 +208,7 @@
       </div>
       <div class="mt-5 overflow-x-auto">
         <table class="w-full min-w-[760px] text-left text-sm">
-          <thead class="border-b-4 border-slate-900 bg-slate-100 dark:bg-slate-800"><tr><th>ผู้ใช้</th><th>บทบาท</th><th>อีเมล</th><th>โทร</th><th>ทะเบียน</th><th>จำนวนงาน</th><th>กำไรรวม</th></tr></thead>
+          <thead class="border-b border-slate-200 bg-slate-100 dark:bg-slate-800"><tr><th>ผู้ใช้</th><th>บทบาท</th><th>อีเมล</th><th>โทร</th><th>ทะเบียน</th><th>จำนวนงาน</th><th>กำไรรวม</th></tr></thead>
           <tbody id="adminRows"></tbody>
         </table>
       </div>
@@ -221,7 +221,7 @@
       </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[760px] text-left text-sm">
-          <thead class="border-b-4 border-slate-900 bg-slate-100 dark:bg-slate-800"><tr><th>วันที่</th><th>งาน</th><th>ค่ารอบ</th><th>กม.</th><th>ลิตร</th><th>ค่าน้ำมัน</th><th>กำไร</th><th></th></tr></thead>
+          <thead class="border-b border-slate-200 bg-slate-100 dark:bg-slate-800"><tr><th>วันที่</th><th>งาน</th><th>ค่ารอบ</th><th>กม.</th><th>ลิตร</th><th>ค่าน้ำมัน</th><th>กำไร</th><th></th></tr></thead>
           <tbody id="jobRows"></tbody>
         </table>
       </div>
