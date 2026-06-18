@@ -1,324 +1,57 @@
 const $ = (id) => document.getElementById(id);
 const money = (n) => `฿${Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const sum = (arr, key) => arr.reduce((a,b)=>a + Number(b[key] || 0), 0);
 const demoUsers = [
-  { id:'rider-demo', email:'rider@demo.com', password:'rider123', name:'ไรเดอร์เดโม', role:'rider', phone:'089-123-4567', vehicle:'1กข 1234' },
-  { id:'admin-demo', email:'admin@demo.com', password:'admin123', name:'ผู้ดูแลระบบ', role:'admin', phone:'02-000-0000', vehicle:'Back office' }
+  { id:'rider-demo', email:'rider@demo.com', password:'rider123', name:'ไรเดอร์เดโม', role:'rider', phone:'089-123-4567', vehicle:'1กข 1234', vehicleType:'มอเตอร์ไซค์', vehicleModel:'Honda Click', efficiency:40 },
+  { id:'admin-demo', email:'admin@demo.com', password:'admin123', name:'ผู้ดูแลระบบ', role:'admin', phone:'02-000-0000', vehicle:'Back office', vehicleType:'Admin', vehicleModel:'-', efficiency:40 }
 ];
-
-const account = {
-  get users(){
-    const saved = JSON.parse(localStorage.getItem('rider_users') || 'null');
-    if (saved?.length) return saved;
-    localStorage.setItem('rider_users', JSON.stringify(demoUsers));
-    return demoUsers;
-  },
-  set users(v){ localStorage.setItem('rider_users', JSON.stringify(v)) },
-  get current(){ return JSON.parse(localStorage.getItem('rider_current_user') || 'null') },
-  set current(v){ v ? localStorage.setItem('rider_current_user', JSON.stringify(v)) : localStorage.removeItem('rider_current_user') }
-};
-
+const account = { get users(){ const saved = JSON.parse(localStorage.getItem('rider_users') || 'null'); if (saved?.length) return saved; localStorage.setItem('rider_users', JSON.stringify(demoUsers)); return demoUsers; }, set users(v){ localStorage.setItem('rider_users', JSON.stringify(v)) }, get current(){ return JSON.parse(localStorage.getItem('rider_current_user') || 'null') }, set current(v){ v ? localStorage.setItem('rider_current_user', JSON.stringify(v)) : localStorage.removeItem('rider_current_user') } };
 const keyFor = (name, userId = account.current?.id || 'guest') => `rider_${name}_${userId}`;
-const store = {
-  get jobs(){ return JSON.parse(localStorage.getItem(keyFor('jobs')) || '[]') },
-  set jobs(v){ localStorage.setItem(keyFor('jobs'), JSON.stringify(v)) },
-  get goals(){ return JSON.parse(localStorage.getItem(keyFor('goals')) || '{"daily":800,"monthly":18000}') },
-  set goals(v){ localStorage.setItem(keyFor('goals'), JSON.stringify(v)) }
-};
-let currentFuel = 38.25;
-let goalReached = { daily:false, monthly:false };
-
+const store = { get jobs(){ return JSON.parse(localStorage.getItem(keyFor('jobs')) || '[]') }, set jobs(v){ localStorage.setItem(keyFor('jobs'), JSON.stringify(v)); autoBackup(); }, get goals(){ return JSON.parse(localStorage.getItem(keyFor('goals')) || '{"daily":800,"monthly":18000}') }, set goals(v){ localStorage.setItem(keyFor('goals'), JSON.stringify(v)); autoBackup(); } };
+let currentFuel = 38.25, goalReached = { daily:false, monthly:false }, deferredInstallPrompt = null, dbPromise = null;
 const Toast = Swal.mixin({ toast:true, position:'top-end', timer:2200, showConfirmButton:false, customClass:{popup:'pixel-swal'} });
 
-function init() {
-  ensureDemoAccounts();
-  applyAuthState();
-  $('jobDate').value = todayISO();
-  document.documentElement.classList.toggle('dark', localStorage.theme === 'dark');
-  hydrateGoals();
-  updateRealtimeRiders();
-  setInterval(updateRealtimeRiders, 5000);
-  bindEvents();
-  loadFuelPrice();
-  render();
-  calculateFill();
-}
-
-function bindEvents(){
-  $('themeBtn').onclick = () => { document.documentElement.classList.toggle('dark'); localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; };
-  $('loginForm').onsubmit = login;
-  $('quickAdminBtn').onclick = () => loginAs('admin@demo.com', 'admin123');
-  $('logoutBtn').onclick = logout;
-  $('saveProfileBtn').onclick = saveProfile;
-  $('jobForm').onsubmit = saveJob;
-  $('goalForm').onsubmit = saveGoals;
-  $('clearBtn').onclick = clearJobs;
-  $('sampleBtn').onclick = addSamples;
-  $('excelBtn').onclick = exportExcel;
-  $('pdfBtn').onclick = exportPDF;
-  $('ocrBtn').onclick = () => $('imageInput').click();
-  $('imageInput').onchange = mockOCR;
-  ['fillBudget','fillPrice','fillEff'].forEach(id => $(id).addEventListener('input', calculateFill));
-}
-
-function updateRealtimeRiders(){
-  const previous = Number(localStorage.riderCounter || 1278);
-  const riders = previous + Math.floor(Math.random() * 5);
-  localStorage.riderCounter = riders;
-  $('riderCount').textContent = riders.toLocaleString('th-TH');
-  $('profileRiderCount').textContent = riders.toLocaleString('th-TH');
-  $('riderPulse').textContent = `Live +${riders - previous} ใน 5 วินาทีล่าสุด`;
-}
-
-async function loadFuelPrice(){
-  const sources = [
-    'https://api.chnwt.dev/thai-oil-api/latest',
-    'https://api.allorigins.win/raw?url=https://api.chnwt.dev/thai-oil-api/latest'
-  ];
-  for (const url of sources) {
-    try {
-      const res = await fetch(url, { cache:'no-store' });
-      if (!res.ok) throw new Error('bad status');
-      const data = await res.json();
-      const gasohol95 = JSON.stringify(data).match(/gasohol\s*95[^0-9]*(\d+\.?\d*)/i)?.[1];
-      currentFuel = Number(gasohol95 || data?.response?.stations?.ptt?.gasohol_95?.price || currentFuel);
-      break;
-    } catch (_) { /* fallback below */ }
-  }
-  $('fuelHeadline').textContent = `${money(currentFuel)}/ลิตร`;
-  $('fuelUpdated').textContent = `อัปเดต ${new Date().toLocaleString('th-TH')}`;
-  $('fuelPrice').value = currentFuel;
-  $('fillPrice').value = currentFuel;
-  calculateFill();
-}
-
-function saveJob(e){
-  e.preventDefault();
-  const fare = +$('fare').value, distance = +$('distance').value, efficiency = +$('efficiency').value, fuelPrice = +$('fuelPrice').value;
-  const liters = distance / efficiency;
-  const fuelCost = liters * fuelPrice;
-  const job = { id: crypto.randomUUID(), date:$('jobDate').value, name:$('jobName').value || 'Grab delivery', fare, distance, efficiency, fuelPrice, liters, fuelCost, profit: fare - fuelCost };
-  store.jobs = [job, ...store.jobs];
-  e.target.reset(); $('jobDate').value = todayISO(); $('efficiency').value = 40; $('fuelPrice').value = currentFuel;
-  Toast.fire({icon:'success', title:'บันทึกงานแล้ว'});
-  render();
-}
-
-function render(){
-  const jobs = store.jobs;
-  $('jobRows').innerHTML = jobs.map(j => `<tr><td>${j.date}</td><td class="font-bold">${j.name}</td><td>${money(j.fare)}</td><td>${j.distance.toFixed(2)}</td><td>${j.liters.toFixed(2)}</td><td>${money(j.fuelCost)}</td><td class="font-black ${j.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}">${money(j.profit)}</td><td><button class="pixel-btn bg-red-200 text-xs" onclick="deleteJob('${j.id}')">ลบ</button></td></tr>`).join('') || `<tr><td colspan="8" class="py-8 text-center font-bold">ยังไม่มีข้อมูล ลองเพิ่มงานแรกของคุณได้เลย</td></tr>`;
-  const now = new Date();
-  const day = todayISO();
-  const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
-  const month = day.slice(0,7);
-  const sum = (arr, key) => arr.reduce((a,b)=>a + Number(b[key] || 0), 0);
-  const todayJobs = jobs.filter(j => j.date === day);
-  const weekJobs = jobs.filter(j => new Date(j.date) >= weekAgo);
-  const monthJobs = jobs.filter(j => j.date?.startsWith(month));
-  const todayProfit = sum(todayJobs,'profit');
-  const monthlyProfit = sum(monthJobs,'profit');
-  $('todayProfit').textContent = money(todayProfit);
-  $('todayFuel').textContent = `ค่าน้ำมัน ${money(sum(todayJobs,'fuelCost'))}`;
-  $('totalFare').textContent = money(sum(jobs,'fare'));
-  $('totalKm').textContent = `${sum(jobs,'distance').toFixed(2)} กม.`;
-  $('dailySummary').textContent = money(todayProfit);
-  $('weeklySummary').textContent = money(sum(weekJobs,'profit'));
-  $('monthlySummary').textContent = money(monthlyProfit);
-  renderProfile(jobs, todayProfit, monthlyProfit);
-  renderGoals(todayProfit, monthlyProfit);
-  renderAdmin();
-}
-
-function ensureDemoAccounts(){
-  const existing = account.users;
-  const merged = [...existing];
-  demoUsers.forEach(user => { if (!merged.some(item => item.email === user.email)) merged.push(user); });
-  account.users = merged;
-}
-
-function applyAuthState(){
-  const user = account.current;
-  $('loginScreen').style.display = user ? 'none' : 'flex';
-  document.body.classList.toggle('overflow-hidden', !user);
-  if (!user) {
-    $('currentUserName').textContent = 'Guest';
-    $('currentUserRole').textContent = 'ยังไม่เข้าสู่ระบบ';
-    $('adminNav').classList.add('hidden');
-    $('adminPage').classList.add('hidden');
-    return;
-  }
-  $('currentUserName').textContent = user.name;
-  $('currentUserRole').textContent = user.role === 'admin' ? 'Admin หลังบ้าน' : 'Rider ผู้ใช้งาน';
-  $('adminNav').classList.toggle('hidden', user.role !== 'admin');
-  $('adminPage').classList.toggle('hidden', user.role !== 'admin');
-  $('profileName').value = user.name || '';
-  $('profilePhone').value = user.phone || '';
-  $('profileVehicle').value = user.vehicle || '';
-}
-
-function login(e){
-  e.preventDefault();
-  loginAs($('loginEmail').value, $('loginPassword').value);
-}
-
-function loginAs(email, password){
-  const user = account.users.find(item => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
-  if (!user) { Toast.fire({ icon:'error', title:'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }); return; }
-  account.current = user;
-  applyAuthState();
-  hydrateGoals();
-  render();
-  Toast.fire({ icon:'success', title:`ยินดีต้อนรับ ${user.name}` });
-}
-
-function logout(){
-  account.current = null;
-  applyAuthState();
-}
-
-function saveProfile(){
-  if (!account.current) return;
-  const user = { ...account.current, name:$('profileName').value || account.current.name, phone:$('profilePhone').value, vehicle:$('profileVehicle').value };
-  account.users = account.users.map(item => item.id === user.id ? user : item);
-  account.current = user;
-  applyAuthState();
-  renderAdmin();
-  Toast.fire({ icon:'success', title:'บันทึกโปรไฟล์แล้ว' });
-}
-
-function jobsFor(userId){ return JSON.parse(localStorage.getItem(keyFor('jobs', userId)) || '[]'); }
-function renderAdmin(){
-  if (account.current?.role !== 'admin') return;
-  const users = account.users;
-  const rows = users.map(user => {
-    const jobs = jobsFor(user.id);
-    return { user, jobs, profit:sumProfit(jobs) };
-  });
-  $('adminUserCount').textContent = users.length.toLocaleString('th-TH');
-  $('adminJobCount').textContent = rows.reduce((total, row) => total + row.jobs.length, 0).toLocaleString('th-TH');
-  $('adminProfitTotal').textContent = money(rows.reduce((total, row) => total + row.profit, 0));
-  $('adminRows').innerHTML = rows.map(({ user, jobs, profit }) => `<tr><td class="font-bold">${user.name}</td><td>${user.role}</td><td>${user.email}</td><td>${user.phone || '-'}</td><td>${user.vehicle || '-'}</td><td>${jobs.length}</td><td class="font-black ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}">${money(profit)}</td></tr>`).join('');
-}
-
-
-function renderProfile(jobs, todayProfit, monthlyProfit){
-  const monthly = lastMonths(6).map(({ key, label }) => ({ key, label, profit: sumProfit(jobs.filter(j => j.date?.startsWith(key))) }));
-  const thisMonth = monthly.at(-1)?.profit || 0;
-  const prevMonth = monthly.at(-2)?.profit || 0;
-  const maxMonthly = Math.max(1, ...monthly.map(m => Math.abs(m.profit)));
-  $('monthlyBars').innerHTML = monthly.map(m => `<div class="flex flex-col items-center gap-2"><div class="flex h-36 w-full items-end justify-center rounded-xl border-2 border-slate-900 bg-slate-100 p-1 dark:bg-slate-800"><div class="w-8 rounded-t-lg ${m.profit >= 0 ? 'bg-emerald-400' : 'bg-red-400'}" style="height:${Math.max(8, Math.abs(m.profit) / maxMonthly * 100)}%"></div></div><b class="text-xs">${m.label}</b><span class="text-xs font-black ${m.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}">${money(m.profit)}</span></div>`).join('');
-  $('monthCompare').textContent = `${thisMonth >= prevMonth ? '▲' : '▼'} ${money(thisMonth - prevMonth)} เทียบเดือนก่อน`;
-  $('profileMonthlyProfit').textContent = money(monthlyProfit);
-  renderTrend(jobs);
-  renderHeatmap(jobs);
-}
-
-function renderTrend(jobs){
-  const days = lastDays(30).map(date => ({ date, profit: sumProfit(jobs.filter(j => j.date === date)) }));
-  const values = days.map(d => d.profit);
-  const max = Math.max(1, ...values);
-  const min = Math.min(0, ...values);
-  const span = max - min || 1;
-  const points = days.map((d, i) => `${(i / 29) * 300},${110 - ((d.profit - min) / span) * 95}`).join(' ');
-  $('dailyTrend').setAttribute('points', points);
-  const active = days.filter(d => d.profit !== 0);
-  $('trendHigh').textContent = money(Math.max(0, ...values));
-  $('trendAvg').textContent = money(active.length ? sumProfit(active) / active.length : 0);
-  $('trendDays').textContent = `${active.length} วัน`;
-}
-
-function renderHeatmap(jobs){
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const first = new Date(year, month, 1);
-  const totalDays = new Date(year, month + 1, 0).getDate();
-  const blanks = Array.from({ length:first.getDay() }, () => '<div></div>');
-  const cells = Array.from({ length:totalDays }, (_, i) => {
-    const date = `${year}-${String(month + 1).padStart(2,'0')}-${String(i + 1).padStart(2,'0')}`;
-    const profit = sumProfit(jobs.filter(j => j.date === date));
-    const intensity = Math.min(1, Math.abs(profit) / 1000);
-    const alpha = profit === 0 ? .15 : .35 + (intensity * .65);
-    const color = profit >= 0 ? `rgba(16,185,129,${alpha})` : `rgba(239,68,68,${alpha})`;
-    return `<div title="${date} ${money(profit)}" class="heat-cell" style="background:${color}"><span>${i + 1}</span></div>`;
-  });
-  $('monthHeatmap').innerHTML = [...blanks, ...cells].join('');
-}
-
-function hydrateGoals(){
-  const goals = store.goals;
-  $('dailyGoal').value = goals.daily;
-  $('monthlyGoal').value = goals.monthly;
-}
-
-function saveGoals(e){
-  e.preventDefault();
-  store.goals = { daily:+$('dailyGoal').value || 0, monthly:+$('monthlyGoal').value || 0 };
-  goalReached = { daily:false, monthly:false };
-  render();
-  Toast.fire({ icon:'success', title:'อัปเดตเป้าหมายแล้ว' });
-}
-
-function renderGoals(todayProfit, monthlyProfit){
-  const goals = store.goals;
-  updateGoalBar('dailyGoalBar', 'dailyGoalText', todayProfit, goals.daily, 'รายวัน');
-  updateGoalBar('monthlyGoalBar', 'monthlyGoalText', monthlyProfit, goals.monthly, 'รายเดือน');
-  if (goals.daily > 0 && todayProfit >= goals.daily && !goalReached.daily) {
-    goalReached.daily = true;
-    Toast.fire({ icon:'success', title:'🎯 ถึงเป้ากำไรรายวันแล้ว!' });
-  }
-  if (goals.monthly > 0 && monthlyProfit >= goals.monthly && !goalReached.monthly) {
-    goalReached.monthly = true;
-    Toast.fire({ icon:'success', title:'🏆 ถึงเป้ากำไรรายเดือนแล้ว!' });
-  }
-}
-
-function updateGoalBar(barId, textId, current, target, label){
-  const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
-  $(barId).style.width = `${pct}%`;
-  $(textId).textContent = `${label}: ${money(current)} / ${money(target)} (${pct.toFixed(0)}%)`;
-}
-
-function lastMonths(count){
-  const formatter = new Intl.DateTimeFormat('th-TH', { month:'short' });
-  const base = new Date();
-  return Array.from({ length:count }, (_, i) => {
-    const d = new Date(base.getFullYear(), base.getMonth() - (count - 1 - i), 1);
-    return { key:`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}`, label:formatter.format(d) };
-  });
-}
-
-function lastDays(count){
-  return Array.from({ length:count }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (count - 1 - i));
-    return d.toISOString().slice(0, 10);
-  });
-}
-
-function sumProfit(items){ return items.reduce((total, item) => total + Number(item.profit || 0), 0); }
-
-window.deleteJob = (id) => { store.jobs = store.jobs.filter(j => j.id !== id); render(); };
-function calculateFill(){
-  const liters = +$('fillBudget').value / (+$('fillPrice').value || currentFuel);
-  const km = liters * (+$('fillEff').value || 40);
-  $('fillResult').textContent = `เติม ${money($('fillBudget').value)} ได้ ${liters.toFixed(2)} ลิตร วิ่งได้ประมาณ ${km.toFixed(1)} กม.`;
-}
-function clearJobs(){ Swal.fire({title:'ล้างข้อมูลทั้งหมด?', icon:'warning', showCancelButton:true, confirmButtonText:'ล้างเลย', cancelButtonText:'ยกเลิก', customClass:{popup:'pixel-swal'}}).then(r=>{ if(r.isConfirmed){ store.jobs=[]; render(); }}); }
-function addSamples(){
-  const samples = Array.from({ length:45 }, (_, i) => {
-    const date = new Date();
-    date.setDate(date.getDate() - i * 3);
-    const distance = 5 + (i % 9) * 1.7;
-    const fare = 65 + (i % 7) * 18;
-    const fuelCost = (distance / 40) * currentFuel;
-    return { id:crypto.randomUUID(), date:date.toISOString().slice(0,10), name:`Grab Food - ตัวอย่าง ${i + 1}`, fare, distance, efficiency:40, fuelPrice:currentFuel, liters:distance / 40, fuelCost, profit:fare - fuelCost - (i % 11 === 0 ? 95 : 0) };
-  });
-  store.jobs = [...samples, ...store.jobs];
-  render();
-  Toast.fire({icon:'success', title:'เพิ่มข้อมูลตัวอย่างแล้ว'});
-}
-function mockOCR(){ Swal.fire({title:'อ่านรูปแคปหน้าจอ', text:'เดโมนี้จะช่วยกรอกตัวเลขให้ตรวจแก้ก่อนบันทึก (ต่อยอดเชื่อม OCR API ได้)', icon:'info', confirmButtonText:'กรอกตัวอย่าง', customClass:{popup:'pixel-swal'}}).then(()=>{ $('fare').value = 68; $('distance').value = 6.7; $('jobName').value = 'นำเข้าจากรูป Grab'; }); }
-function exportExcel(){ const ws = XLSX.utils.json_to_sheet(store.jobs); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Rider Jobs'); XLSX.writeFile(wb, `rider-jobs-${todayISO()}.xlsx`); }
-function exportPDF(){ const { jsPDF } = window.jspdf; const doc = new jsPDF(); doc.text('Rider Fuel Report', 14, 16); doc.autoTable({ startY:22, head:[['Date','Job','Fare','KM','Fuel','Profit']], body:store.jobs.map(j=>[j.date,j.name,j.fare,j.distance,j.fuelCost.toFixed(2),j.profit.toFixed(2)]) }); doc.save(`rider-report-${todayISO()}.pdf`); }
+function init(){ ensureDemoAccounts(); initIndexedDB(); applyTheme(); applyAuthState(); $('jobDate').value = todayISO(); hydrateGoals(); bindEvents(); registerPWA(); loadFuelPrice(); render(); calculateFill(); }
+function bindEvents(){ $('themeMode').onchange = (e)=>{ localStorage.theme = e.target.value; applyTheme(); }; $('loginForm').onsubmit = login; $('quickAdminBtn').onclick = () => loginAs('admin@demo.com','admin123'); $('googleLoginBtn').onclick = googleLogin; $('logoutBtn').onclick = logout; $('syncBtn').onclick = syncCloud; $('saveProfileBtn').onclick = saveProfile; $('jobForm').onsubmit = saveJob; $('goalForm').onsubmit = saveGoals; $('clearBtn').onclick = clearJobs; $('sampleBtn').onclick = addSamples; $('excelBtn').onclick = exportExcel; $('pdfBtn').onclick = exportPDF; $('backupBtn').onclick = backupJSON; $('importBtn').onclick = ()=>$('importFile').click(); $('importFile').onchange = importJSON; $('ocrBtn').onclick = ()=>$('imageInput').click(); $('imageInput').onchange = runOCR; $('searchInput').oninput = renderJobs; ['fillBudget','fillPrice','fillEff'].forEach(id => $(id).addEventListener('input', calculateFill)); $('installBtn').onclick = installPWA; }
+function applyTheme(){ const mode = localStorage.theme || 'auto'; $('themeMode').value = mode; const dark = mode === 'dark' || (mode === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.classList.toggle('dark', dark); }
+function registerPWA(){ if ('serviceWorker' in navigator) navigator.serviceWorker.register('service-worker.js').catch(()=>{}); window.addEventListener('beforeinstallprompt', (e)=>{ e.preventDefault(); deferredInstallPrompt = e; $('installBtn').classList.remove('hidden'); }); }
+async function installPWA(){ if (!deferredInstallPrompt) return Toast.fire({icon:'info', title:'ติดตั้งได้จากเมนูเบราว์เซอร์'}); deferredInstallPrompt.prompt(); deferredInstallPrompt = null; $('installBtn').classList.add('hidden'); }
+async function loadFuelPrice(){ try { const res = await fetch('https://api.chnwt.dev/thai-oil-api/latest', { cache:'no-store' }); const data = await res.json(); currentFuel = Number(JSON.stringify(data).match(/gasohol\s*95[^0-9]*(\d+\.?\d*)/i)?.[1] || currentFuel); } catch(_) {} $('fuelHeadline').textContent = `${money(currentFuel)}/ลิตร`; $('fuelUpdated').textContent = `อัปเดต ${new Date().toLocaleString('th-TH')}`; $('fuelPrice').value = currentFuel; $('fillPrice').value = currentFuel; calculateFill(); }
+function validateJob(){ const fare=+$('fare').value, distance=+$('distance').value, efficiency=+$('efficiency').value, fuelPrice=+$('fuelPrice').value; if (!$('jobDate').value || !$('jobName').value.trim() || fare < 0 || distance < 0 || efficiency <= 0 || fuelPrice < 0) { Toast.fire({icon:'error', title:'กรุณาตรวจสอบข้อมูลให้ถูกต้อง'}); return null; } const fuelCost = (distance / efficiency) * fuelPrice; return { date:$('jobDate').value, time:$('jobTime').value, name:$('jobName').value.trim(), fare, distance, efficiency, fuelPrice, liters:distance / efficiency, fuelCost, profit:fare - fuelCost }; }
+function saveJob(e){ e.preventDefault(); const payload = validateJob(); if (!payload) return; const editingId = $('editingId').value; const jobs = store.jobs; store.jobs = editingId ? jobs.map(j=>j.id === editingId ? { ...j, ...payload } : j) : [{ id:crypto.randomUUID(), ...payload }, ...jobs]; e.target.reset(); $('editingId').value=''; $('saveJobBtn').textContent='✅ บันทึกค่ารอบ'; $('jobDate').value=todayISO(); $('efficiency').value=account.current?.efficiency || 40; $('fuelPrice').value=currentFuel; Toast.fire({icon:'success', title: editingId ? 'แก้ไขงานแล้ว' : 'บันทึกงานแล้ว'}); render(); }
+function render(){ const jobs = store.jobs; renderJobs(); const now = new Date(), day = todayISO(), weekAgo = new Date(now); weekAgo.setDate(now.getDate()-7); const month = day.slice(0,7); const todayJobs = jobs.filter(j=>j.date===day), weekJobs = jobs.filter(j=>new Date(j.date)>=weekAgo), monthJobs = jobs.filter(j=>j.date?.startsWith(month)); const todayProfit=sum(todayJobs,'profit'), monthlyProfit=sum(monthJobs,'profit'); $('todayRevenue').textContent=money(sum(todayJobs,'fare')); $('todayProfit').textContent=`กำไร ${money(todayProfit)}`; $('weekRevenue').textContent=money(sum(weekJobs,'fare')); $('weekProfit').textContent=`กำไร ${money(sum(weekJobs,'profit'))}`; $('monthRevenue').textContent=money(sum(monthJobs,'fare')); $('monthProfit').textContent=`กำไร ${money(monthlyProfit)}`; $('netProfit').textContent=money(sum(jobs,'profit')); $('totalJobs').textContent=jobs.length.toLocaleString('th-TH'); $('totalKm').textContent=sum(jobs,'distance').toFixed(1); $('totalFuel').textContent=money(sum(jobs,'fuelCost')); renderGoals(todayProfit, monthlyProfit); renderProfile(jobs, monthlyProfit); renderStats(jobs); renderTrend(jobs); renderAdmin(); }
+function renderJobs(){ const q = ($('searchInput')?.value || '').toLowerCase(); const jobs = store.jobs.filter(j=>!q || j.date?.includes(q) || j.name?.toLowerCase().includes(q)); $('jobRows').innerHTML = jobs.map(j=>`<tr><td>${j.date}${j.time?` ${j.time}`:''}</td><td class="font-bold">${escapeHtml(j.name)}</td><td>${money(j.fare)}</td><td>${Number(j.distance).toFixed(2)} กม.</td><td>${money(j.fuelCost)}</td><td class="font-black ${j.profit>=0?'text-emerald-600':'text-red-600'}">${money(j.profit)}</td><td class="flex gap-2"><button class="btn text-xs" onclick="editJob('${j.id}')">แก้ไข</button><button class="btn btn-danger text-xs" onclick="deleteJob('${j.id}')">ลบ</button></td></tr>`).join('') || `<tr><td colspan="7"><div class="empty-state">📊 ยังไม่มีข้อมูล<br><small>เพิ่มงานแรกเพื่อเริ่มดูสถิติ</small></div></td></tr>`; }
+function renderGoals(todayProfit, monthlyProfit){ const g=store.goals; updateGoalBar('dailyGoalBar','dailyGoalText','dailyGoalHint',todayProfit,g.daily,'รายวัน','รายวัน'); updateGoalBar('monthlyGoalBar','monthlyGoalText','monthlyGoalHint',monthlyProfit,g.monthly,'รายเดือน','รายเดือน'); if(g.daily>0&&todayProfit>=g.daily&&!goalReached.daily){goalReached.daily=true; Toast.fire({icon:'success',title:'🎯 ถึงเป้ากำไรรายวันแล้ว!'})} if(g.monthly>0&&monthlyProfit>=g.monthly&&!goalReached.monthly){goalReached.monthly=true; Toast.fire({icon:'success',title:'🏆 ถึงเป้ากำไรรายเดือนแล้ว!'})} }
+function updateGoalBar(barId,textId,hintId,current,target,label,hintLabel){ const pct=target>0?Math.min(100,current/target*100):0; $(barId).style.width=`${pct}%`; $(textId).textContent=`${label}: ${money(current)} / ${money(target)} (${pct.toFixed(0)}%)`; const diff=current-target; $(hintId).textContent=target<=0?'ตั้งเป้าหมายเพื่อเริ่มติดตาม':diff>=0?`🎉 เกินเป้าแล้ว +${money(diff)}`:`เหลืออีก ${money(Math.abs(diff))} จะถึงเป้า${hintLabel}`; }
+function renderProfile(jobs, monthlyProfit){ const monthly=lastMonths(6).map(({key,label})=>({key,label,profit:sum(jobs.filter(j=>j.date?.startsWith(key)),'profit')})); const max=Math.max(1,...monthly.map(m=>Math.abs(m.profit))); $('monthlyBars').innerHTML=monthly.map(m=>`<div class="flex flex-col items-center gap-2"><div class="flex h-36 w-full items-end justify-center rounded-brand border bg-slate-100 p-1 dark:bg-slate-800"><div class="w-8 rounded-t-lg ${m.profit>=0?'bg-emerald-400':'bg-red-400'}" style="height:${Math.max(8,Math.abs(m.profit)/max*100)}%"></div></div><b class="text-xs">${m.label}</b><span class="text-xs font-black">${money(m.profit)}</span></div>`).join(''); }
+function renderStats(jobs){ const activeDays = new Set(jobs.map(j=>j.date)).size || 1; const activeWeeks = Math.max(1, Math.ceil(activeDays/7)); const activeMonths = new Set(jobs.map(j=>j.date?.slice(0,7))).size || 1; $('avgDay').textContent=money(sum(jobs,'fare')/activeDays); $('avgWeek').textContent=money(sum(jobs,'fare')/activeWeeks); $('avgMonth').textContent=money(sum(jobs,'fare')/activeMonths); $('avgJobsDay').textContent=(jobs.length/activeDays).toFixed(1); $('avgKmDay').textContent=`${(sum(jobs,'distance')/activeDays).toFixed(1)} กม.`; }
+function renderTrend(jobs){ const has=jobs.length>0; $('trendEmpty').classList.toggle('hidden',has); $('trendChart').classList.toggle('hidden',!has); if(!has) return; const days=lastDays(30).map(date=>({date,profit:sum(jobs.filter(j=>j.date===date),'profit')})); const values=days.map(d=>d.profit), max=Math.max(1,...values), min=Math.min(0,...values), span=max-min||1; $('dailyTrend').setAttribute('points',days.map((d,i)=>`${(i/29)*300},${110-((d.profit-min)/span)*95}`).join(' ')); }
+function ensureDemoAccounts(){ const merged=[...account.users]; demoUsers.forEach(u=>{ if(!merged.some(x=>x.email===u.email)) merged.push(u); }); account.users=merged; }
+function applyAuthState(){ const u=account.current; $('loginScreen').style.display=u?'none':'flex'; document.body.classList.toggle('overflow-hidden',!u); $('currentUserName').textContent=u?.name||'Guest'; $('currentUserRole').textContent=u ? (u.role==='admin'?'Admin หลังบ้าน':'Rider ผู้ใช้งาน') : 'ยังไม่เข้าสู่ระบบ'; $('adminNav').classList.toggle('hidden',u?.role!=='admin'); $('adminPage').classList.toggle('hidden',u?.role!=='admin'); if(u){ ['Name','Phone','Vehicle','VehicleType','VehicleModel','Efficiency'].forEach(k=>{ const id='profile'+k; if($(id)) $(id).value=u[k.charAt(0).toLowerCase()+k.slice(1)] || ''; }); const g=store.goals; $('profileDailyGoal').value=g.daily; $('profileMonthlyGoal').value=g.monthly; $('efficiency').value=u.efficiency||40; } }
+function login(e){ e.preventDefault(); loginAs($('loginEmail').value,$('loginPassword').value); } function loginAs(email,password){ const u=account.users.find(x=>x.email.toLowerCase()===email.toLowerCase()&&x.password===password); if(!u) return Toast.fire({icon:'error',title:'อีเมลหรือรหัสผ่านไม่ถูกต้อง'}); account.current=u; applyAuthState(); hydrateGoals(); render(); Toast.fire({icon:'success',title:`ยินดีต้อนรับ ${u.name}`}); }
+function googleLogin(){ Toast.fire({icon:'info', title:'พร้อมเชื่อม Firebase Google Login เมื่อใส่ config จริง'}); }
+function logout(){ account.current=null; applyAuthState(); }
+function saveProfile(){ if(!account.current) return; const u={...account.current, name:$('profileName').value, phone:$('profilePhone').value, vehicle:$('profileVehicle').value, vehicleType:$('profileVehicleType').value, vehicleModel:$('profileVehicleModel').value, efficiency:+$('profileEfficiency').value||40}; account.users=account.users.map(x=>x.id===u.id?u:x); account.current=u; store.goals={daily:+$('profileDailyGoal').value||0, monthly:+$('profileMonthlyGoal').value||0}; applyAuthState(); hydrateGoals(); render(); Toast.fire({icon:'success',title:'บันทึกโปรไฟล์แล้ว'}); }
+function hydrateGoals(){ const g=store.goals; $('dailyGoal').value=g.daily; $('monthlyGoal').value=g.monthly; }
+function saveGoals(e){ e.preventDefault(); store.goals={daily:+$('dailyGoal').value||0, monthly:+$('monthlyGoal').value||0}; goalReached={daily:false,monthly:false}; applyAuthState(); render(); Toast.fire({icon:'success',title:'อัปเดตเป้าหมายแล้ว'}); }
+window.editJob=(id)=>{ const j=store.jobs.find(x=>x.id===id); if(!j) return; $('editingId').value=id; ['jobDate','jobTime','jobName','fare','distance','efficiency','fuelPrice'].forEach(id2=>{ const key={jobDate:'date',jobTime:'time',jobName:'name'}[id2]||id2; $(id2).value=j[key]||''; }); $('saveJobBtn').textContent='💾 บันทึกการแก้ไข'; scrollTo({top:$('jobForm').offsetTop-20,behavior:'smooth'}); };
+window.deleteJob=(id)=>Swal.fire({title:'ลบงานนี้?',icon:'warning',showCancelButton:true,confirmButtonText:'ลบ',cancelButtonText:'ยกเลิก',customClass:{popup:'pixel-swal'}}).then(r=>{if(r.isConfirmed){store.jobs=store.jobs.filter(j=>j.id!==id);render();}});
+function clearJobs(){ Swal.fire({title:'ล้างข้อมูลทั้งหมด?',icon:'warning',showCancelButton:true,confirmButtonText:'ล้างเลย',cancelButtonText:'ยกเลิก',customClass:{popup:'pixel-swal'}}).then(r=>{ if(r.isConfirmed){ store.jobs=[]; render(); }}); }
+function addSamples(){ const samples=Array.from({length:45},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-i*3); const distance=5+(i%9)*1.7, fare=65+(i%7)*18, fuelCost=(distance/40)*currentFuel; return {id:crypto.randomUUID(),date:d.toISOString().slice(0,10),time:'12:00',name:`Grab Food - ตัวอย่าง ${i+1}`,fare,distance,efficiency:40,fuelPrice:currentFuel,liters:distance/40,fuelCost,profit:fare-fuelCost}; }); store.jobs=[...samples,...store.jobs]; render(); Toast.fire({icon:'success',title:'เพิ่มข้อมูลตัวอย่างแล้ว'}); }
+async function runOCR(){ const file=$('imageInput').files[0]; if(!file) return; Swal.fire({title:'กำลังอ่านรูป...',text:'โหลด OCR แบบ Lazy Load',allowOutsideClick:false,didOpen:()=>Swal.showLoading()}); try{ if(!window.Tesseract){ await import('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'); } const { data:{ text } } = await Tesseract.recognize(file,'tha+eng'); const nums = text.match(/\d+(?:\.\d+)?/g)||[]; $('fare').value = nums[0] || $('fare').value; $('distance').value = nums[1] || $('distance').value; const date = text.match(/\d{4}-\d{2}-\d{2}|\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/)?.[0]; if(date) $('jobDate').value = normalizeDate(date); const time=text.match(/\d{1,2}:\d{2}/)?.[0]; if(time) $('jobTime').value=time; $('jobName').value=$('jobName').value||'นำเข้าจากรูป'; Swal.close(); Toast.fire({icon:'success',title:'อ่านรูปและกรอกฟอร์มแล้ว'}); }catch(e){ Swal.close(); Toast.fire({icon:'error',title:'OCR ไม่สำเร็จ กรุณากรอกเอง'}); } }
+function normalizeDate(d){ if(d.includes('-')&&d.length===10&&d.indexOf('-')===4) return d; const p=d.split(/[/-]/); const y=p[2].length===2?`20${p[2]}`:p[2]; return `${y}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; }
+function calculateFill(){ const liters=+$('fillBudget').value/(+$('fillPrice').value||currentFuel); const km=liters*(+$('fillEff').value||40); $('fillResult').textContent=`เติม ${money($('fillBudget').value)} ได้ ${liters.toFixed(2)} ลิตร วิ่งได้ประมาณ ${km.toFixed(1)} กม.`; }
+function exportExcel(){ const ws=XLSX.utils.json_to_sheet(store.jobs); const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Rider Jobs'); XLSX.writeFile(wb,`rider-jobs-${todayISO()}.xlsx`); }
+function exportPDF(){ const { jsPDF }=window.jspdf; const doc=new jsPDF(); doc.text('Rider Profit Report',14,16); doc.autoTable({startY:22,head:[['Date','Job','Fare','KM','Fuel','Profit']],body:store.jobs.map(j=>[j.date,j.name,j.fare,j.distance,j.fuelCost.toFixed(2),j.profit.toFixed(2)])}); doc.save(`rider-report-${todayISO()}.pdf`); }
+function backupJSON(){ download(`rider-backup-${todayISO()}.json`, JSON.stringify({version:1, exportedAt:new Date().toISOString(), user:account.current, goals:store.goals, jobs:store.jobs}, null, 2)); }
+function importJSON(){ const file=$('importFile').files[0]; if(!file) return; const reader=new FileReader(); reader.onload=()=>{ try{ const data=JSON.parse(reader.result); if(!Array.isArray(data.jobs)) throw new Error('invalid'); store.jobs=data.jobs; if(data.goals) store.goals=data.goals; hydrateGoals(); render(); Toast.fire({icon:'success',title:'กู้คืนข้อมูลแล้ว'}); }catch{ Toast.fire({icon:'error',title:'ไฟล์ Backup ไม่ถูกต้อง'}); } }; reader.readAsText(file); }
+function initIndexedDB(){ if (!('indexedDB' in window)) return; dbPromise = new Promise((resolve, reject)=>{ const req = indexedDB.open('rider-profit-cache', 1); req.onupgradeneeded = () => req.result.createObjectStore('backups', { keyPath:'userId' }); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); }); }
+async function autoBackup(){ const snapshot = {userId:account.current?.id || 'guest', at:new Date().toISOString(), jobs:JSON.parse(localStorage.getItem(keyFor('jobs'))||'[]'), goals:JSON.parse(localStorage.getItem(keyFor('goals'))||'{}')}; localStorage.setItem(keyFor('auto_backup'), JSON.stringify(snapshot)); if(dbPromise){ try{ const db = await dbPromise; const tx = db.transaction('backups','readwrite'); tx.objectStore('backups').put(snapshot); }catch(_){} } }
+function syncCloud(){ Toast.fire({icon:'info',title:'Local cache พร้อมใช้งาน; Firebase sync เปิดได้เมื่อใส่ config'}); }
+function renderAdmin(){ if(account.current?.role!=='admin') return; const rows=account.users.map(user=>{ const jobs=JSON.parse(localStorage.getItem(keyFor('jobs',user.id))||'[]'); return {user,jobs,profit:sum(jobs,'profit')}; }); $('adminUserCount').textContent=rows.length; $('adminJobCount').textContent=rows.reduce((t,r)=>t+r.jobs.length,0); $('adminProfitTotal').textContent=money(rows.reduce((t,r)=>t+r.profit,0)); $('adminRows').innerHTML=rows.map(({user,jobs,profit})=>`<tr><td class="font-bold">${escapeHtml(user.name)}</td><td>${user.role}</td><td>${user.email}</td><td>${user.phone||'-'}</td><td>${user.vehicle||'-'}</td><td>${jobs.length}</td><td>${money(profit)}</td></tr>`).join(''); }
+function lastMonths(count){ const f=new Intl.DateTimeFormat('th-TH',{month:'short'}), base=new Date(); return Array.from({length:count},(_,i)=>{ const d=new Date(base.getFullYear(),base.getMonth()-(count-1-i),1); return {key:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`,label:f.format(d)}; }); }
+function lastDays(count){ return Array.from({length:count},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-(count-1-i)); return d.toISOString().slice(0,10); }); }
+function download(name, text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type:'application/json'})); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+function escapeHtml(s=''){ return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
 init();
