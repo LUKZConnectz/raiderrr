@@ -1,11 +1,29 @@
 const $ = (id) => document.getElementById(id);
 const money = (n) => `฿${Number(n || 0).toLocaleString('th-TH', { maximumFractionDigits: 2 })}`;
 const todayISO = () => new Date().toISOString().slice(0, 10);
+const demoUsers = [
+  { id:'rider-demo', email:'rider@demo.com', password:'rider123', name:'ไรเดอร์เดโม', role:'rider', phone:'089-123-4567', vehicle:'1กข 1234' },
+  { id:'admin-demo', email:'admin@demo.com', password:'admin123', name:'ผู้ดูแลระบบ', role:'admin', phone:'02-000-0000', vehicle:'Back office' }
+];
+
+const account = {
+  get users(){
+    const saved = JSON.parse(localStorage.getItem('rider_users') || 'null');
+    if (saved?.length) return saved;
+    localStorage.setItem('rider_users', JSON.stringify(demoUsers));
+    return demoUsers;
+  },
+  set users(v){ localStorage.setItem('rider_users', JSON.stringify(v)) },
+  get current(){ return JSON.parse(localStorage.getItem('rider_current_user') || 'null') },
+  set current(v){ v ? localStorage.setItem('rider_current_user', JSON.stringify(v)) : localStorage.removeItem('rider_current_user') }
+};
+
+const keyFor = (name, userId = account.current?.id || 'guest') => `rider_${name}_${userId}`;
 const store = {
-  get jobs(){ return JSON.parse(localStorage.getItem('rider_jobs') || '[]') },
-  set jobs(v){ localStorage.setItem('rider_jobs', JSON.stringify(v)) },
-  get goals(){ return JSON.parse(localStorage.getItem('rider_goals') || '{"daily":800,"monthly":18000}') },
-  set goals(v){ localStorage.setItem('rider_goals', JSON.stringify(v)) }
+  get jobs(){ return JSON.parse(localStorage.getItem(keyFor('jobs')) || '[]') },
+  set jobs(v){ localStorage.setItem(keyFor('jobs'), JSON.stringify(v)) },
+  get goals(){ return JSON.parse(localStorage.getItem(keyFor('goals')) || '{"daily":800,"monthly":18000}') },
+  set goals(v){ localStorage.setItem(keyFor('goals'), JSON.stringify(v)) }
 };
 let currentFuel = 38.25;
 let goalReached = { daily:false, monthly:false };
@@ -13,6 +31,8 @@ let goalReached = { daily:false, monthly:false };
 const Toast = Swal.mixin({ toast:true, position:'top-end', timer:2200, showConfirmButton:false, customClass:{popup:'pixel-swal'} });
 
 function init() {
+  ensureDemoAccounts();
+  applyAuthState();
   $('jobDate').value = todayISO();
   document.documentElement.classList.toggle('dark', localStorage.theme === 'dark');
   hydrateGoals();
@@ -26,6 +46,10 @@ function init() {
 
 function bindEvents(){
   $('themeBtn').onclick = () => { document.documentElement.classList.toggle('dark'); localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; };
+  $('loginForm').onsubmit = login;
+  $('quickAdminBtn').onclick = () => loginAs('admin@demo.com', 'admin123');
+  $('logoutBtn').onclick = logout;
+  $('saveProfileBtn').onclick = saveProfile;
   $('jobForm').onsubmit = saveJob;
   $('goalForm').onsubmit = saveGoals;
   $('clearBtn').onclick = clearJobs;
@@ -102,7 +126,80 @@ function render(){
   $('monthlySummary').textContent = money(monthlyProfit);
   renderProfile(jobs, todayProfit, monthlyProfit);
   renderGoals(todayProfit, monthlyProfit);
+  renderAdmin();
 }
+
+function ensureDemoAccounts(){
+  const existing = account.users;
+  const merged = [...existing];
+  demoUsers.forEach(user => { if (!merged.some(item => item.email === user.email)) merged.push(user); });
+  account.users = merged;
+}
+
+function applyAuthState(){
+  const user = account.current;
+  $('loginScreen').style.display = user ? 'none' : 'flex';
+  document.body.classList.toggle('overflow-hidden', !user);
+  if (!user) {
+    $('currentUserName').textContent = 'Guest';
+    $('currentUserRole').textContent = 'ยังไม่เข้าสู่ระบบ';
+    $('adminNav').classList.add('hidden');
+    $('adminPage').classList.add('hidden');
+    return;
+  }
+  $('currentUserName').textContent = user.name;
+  $('currentUserRole').textContent = user.role === 'admin' ? 'Admin หลังบ้าน' : 'Rider ผู้ใช้งาน';
+  $('adminNav').classList.toggle('hidden', user.role !== 'admin');
+  $('adminPage').classList.toggle('hidden', user.role !== 'admin');
+  $('profileName').value = user.name || '';
+  $('profilePhone').value = user.phone || '';
+  $('profileVehicle').value = user.vehicle || '';
+}
+
+function login(e){
+  e.preventDefault();
+  loginAs($('loginEmail').value, $('loginPassword').value);
+}
+
+function loginAs(email, password){
+  const user = account.users.find(item => item.email.toLowerCase() === email.toLowerCase() && item.password === password);
+  if (!user) { Toast.fire({ icon:'error', title:'อีเมลหรือรหัสผ่านไม่ถูกต้อง' }); return; }
+  account.current = user;
+  applyAuthState();
+  hydrateGoals();
+  render();
+  Toast.fire({ icon:'success', title:`ยินดีต้อนรับ ${user.name}` });
+}
+
+function logout(){
+  account.current = null;
+  applyAuthState();
+}
+
+function saveProfile(){
+  if (!account.current) return;
+  const user = { ...account.current, name:$('profileName').value || account.current.name, phone:$('profilePhone').value, vehicle:$('profileVehicle').value };
+  account.users = account.users.map(item => item.id === user.id ? user : item);
+  account.current = user;
+  applyAuthState();
+  renderAdmin();
+  Toast.fire({ icon:'success', title:'บันทึกโปรไฟล์แล้ว' });
+}
+
+function jobsFor(userId){ return JSON.parse(localStorage.getItem(keyFor('jobs', userId)) || '[]'); }
+function renderAdmin(){
+  if (account.current?.role !== 'admin') return;
+  const users = account.users;
+  const rows = users.map(user => {
+    const jobs = jobsFor(user.id);
+    return { user, jobs, profit:sumProfit(jobs) };
+  });
+  $('adminUserCount').textContent = users.length.toLocaleString('th-TH');
+  $('adminJobCount').textContent = rows.reduce((total, row) => total + row.jobs.length, 0).toLocaleString('th-TH');
+  $('adminProfitTotal').textContent = money(rows.reduce((total, row) => total + row.profit, 0));
+  $('adminRows').innerHTML = rows.map(({ user, jobs, profit }) => `<tr><td class="font-bold">${user.name}</td><td>${user.role}</td><td>${user.email}</td><td>${user.phone || '-'}</td><td>${user.vehicle || '-'}</td><td>${jobs.length}</td><td class="font-black ${profit >= 0 ? 'text-emerald-600' : 'text-red-600'}">${money(profit)}</td></tr>`).join('');
+}
+
 
 function renderProfile(jobs, todayProfit, monthlyProfit){
   const monthly = lastMonths(6).map(({ key, label }) => ({ key, label, profit: sumProfit(jobs.filter(j => j.date?.startsWith(key))) }));
