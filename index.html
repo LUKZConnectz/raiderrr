@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="th" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rider Fuel Pixel Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { pixel: ['"Press Start 2P"', 'monospace'], sans: ['Inter', 'system-ui', 'sans-serif'] },
+          boxShadow: { pixel: '6px 6px 0px 0px rgba(15,23,42,.9)', pixelLight: '4px 4px 0px 0px rgba(56,189,248,.9)' }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-amber-50 text-slate-900 transition dark:bg-slate-950 dark:text-slate-100">
+  <div class="fixed inset-0 -z-10 pixel-grid opacity-50"></div>
+  <main class="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+    <header class="pixel-card bg-white/90 p-5 dark:bg-slate-900/90">
+      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <p class="font-pixel text-xs text-emerald-600 dark:text-emerald-300">GRAB RIDER LEDGER</p>
+          <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-5xl">บันทึกค่ารอบ + ค่าน้ำมัน</h1>
+          <p class="mt-3 max-w-3xl text-slate-600 dark:text-slate-300">คำนวณกำไรสุทธิจากทุกงาน ส่งของกี่กิโล ใช้น้ำมันเท่าไร เติมน้ำมันคุ้มไหม พร้อม Dashboard, OCR จากรูปแคปหน้าจอ, Export Excel/PDF และราคาน้ำมันแบบ Real-time</p>
+        </div>
+        <div class="flex flex-wrap gap-3">
+          <button id="themeBtn" class="pixel-btn bg-slate-900 text-white dark:bg-white dark:text-slate-900">🌗 Dark / White</button>
+          <button id="sampleBtn" class="pixel-btn bg-pink-300">✨ เติมข้อมูลตัวอย่าง</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <article class="stat-card bg-emerald-200"><span>กำไรวันนี้</span><strong id="todayProfit">฿0</strong><small id="todayFuel">ค่าน้ำมัน ฿0</small></article>
+      <article class="stat-card bg-sky-200"><span>ค่ารอบทั้งหมด</span><strong id="totalFare">฿0</strong><small id="totalKm">0 กม.</small></article>
+      <article class="stat-card bg-violet-200"><span>ไรเดอร์ที่ใช้เว็บ</span><strong id="riderCount">0</strong><small>จำลองจาก localStorage + counter</small></article>
+      <article class="stat-card bg-orange-200"><span>ราคาน้ำมันล่าสุด</span><strong id="fuelHeadline">กำลังโหลด...</strong><small id="fuelUpdated">Real-time API</small></article>
+    </section>
+
+    <section class="mt-5 grid gap-5 lg:grid-cols-[1.05fr_.95fr]">
+      <form id="jobForm" class="pixel-card bg-white p-5 dark:bg-slate-900">
+        <div class="mb-4 flex items-center justify-between gap-3">
+          <h2 class="font-pixel text-sm">➕ เพิ่มงานส่งของ</h2>
+          <button type="button" id="ocrBtn" class="pixel-btn bg-lime-300 text-sm">📸 อ่านจากรูป</button>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label>วันที่<input id="jobDate" type="date" class="input" required></label>
+          <label>ชื่องาน/ลูกค้า<input id="jobName" class="input" placeholder="เช่น Grab Food - สีลม"></label>
+          <label>ค่ารอบ (บาท)<input id="fare" type="number" min="0" step="0.01" class="input" required></label>
+          <label>ระยะทาง (กม.)<input id="distance" type="number" min="0" step="0.01" class="input" required></label>
+          <label>อัตราสิ้นเปลือง (กม./ลิตร)<input id="efficiency" type="number" min="1" step="0.1" value="40" class="input" required></label>
+          <label>ราคาน้ำมัน/ลิตร<input id="fuelPrice" type="number" min="0" step="0.01" class="input" required></label>
+        </div>
+        <button class="pixel-btn mt-5 w-full bg-emerald-300">✅ บันทึกค่ารอบ</button>
+      </form>
+
+      <div class="space-y-5">
+        <section class="pixel-card bg-white p-5 dark:bg-slate-900">
+          <h2 class="font-pixel text-sm">⛽ คำนวณการเติมน้ำมัน</h2>
+          <div class="mt-4 grid gap-3 sm:grid-cols-3">
+            <label>งบเติม<input id="fillBudget" type="number" class="input" value="200"></label>
+            <label>ราคาลิตร<input id="fillPrice" type="number" class="input"></label>
+            <label>กินน้ำมัน<input id="fillEff" type="number" class="input" value="40"></label>
+          </div>
+          <div id="fillResult" class="mt-4 rounded-xl border-4 border-slate-900 bg-yellow-100 p-4 font-bold dark:text-slate-900">เติมแล้ววิ่งได้ประมาณ 0 กม.</div>
+        </section>
+        <section class="pixel-card bg-white p-5 dark:bg-slate-900">
+          <div class="flex items-center justify-between"><h2 class="font-pixel text-sm">📊 สรุป</h2><div class="flex gap-2"><button id="excelBtn" class="pixel-btn bg-green-300 text-xs">Excel</button><button id="pdfBtn" class="pixel-btn bg-red-300 text-xs">PDF</button></div></div>
+          <div class="mt-4 grid gap-3 sm:grid-cols-3">
+            <div class="summary"><span>รายวัน</span><b id="dailySummary">฿0</b></div>
+            <div class="summary"><span>รายสัปดาห์</span><b id="weeklySummary">฿0</b></div>
+            <div class="summary"><span>รายเดือน</span><b id="monthlySummary">฿0</b></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="mt-5 pixel-card bg-white p-5 dark:bg-slate-900">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="font-pixel text-sm">🧾 รายการงาน</h2>
+        <button id="clearBtn" class="pixel-btn bg-slate-200 text-xs">ล้างข้อมูล</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[760px] text-left text-sm">
+          <thead class="border-b-4 border-slate-900 bg-slate-100 dark:bg-slate-800"><tr><th>วันที่</th><th>งาน</th><th>ค่ารอบ</th><th>กม.</th><th>ลิตร</th><th>ค่าน้ำมัน</th><th>กำไร</th><th></th></tr></thead>
+          <tbody id="jobRows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <input id="imageInput" type="file" accept="image/*" class="hidden">
+  <script src="app.js"></script>
+</body>
+</html>
