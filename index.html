@@ -33,10 +33,12 @@
         <div>
           <p class="font-pixel text-xs text-emerald-600 dark:text-emerald-300">GRAB RIDER LEDGER</p>
           <h1 class="mt-3 text-3xl font-black tracking-tight sm:text-5xl">บันทึกค่ารอบ + ค่าน้ำมัน</h1>
-          <p class="mt-3 max-w-3xl text-slate-600 dark:text-slate-300">คำนวณกำไรสุทธิจากทุกงาน ส่งของกี่กิโล ใช้น้ำมันเท่าไร เติมน้ำมันคุ้มไหม พร้อม Dashboard, OCR จากรูปแคปหน้าจอ, Export Excel/PDF และราคาน้ำมันแบบ Real-time</p>
+          <p class="mt-3 max-w-3xl text-slate-600 dark:text-slate-300">คำนวณกำไรสุทธิจากทุกงาน ส่งของกี่กิโล ใช้น้ำมันเท่าไร เติมน้ำมันคุ้มไหม พร้อม Profile Analytics, OCR จากรูปแคปหน้าจอ, Export Excel/PDF และราคาน้ำมันแบบ Real-time</p>
         </div>
         <div class="flex flex-wrap gap-3">
           <button id="themeBtn" class="pixel-btn bg-slate-900 text-white dark:bg-white dark:text-slate-900">🌗 Dark / White</button>
+          <a href="#profilePage" class="pixel-btn bg-cyan-300">👤 Profile</a>
+          <a href="#goalsPage" class="pixel-btn bg-yellow-300">🎯 เป้าหมาย</a>
           <button id="sampleBtn" class="pixel-btn bg-pink-300">✨ เติมข้อมูลตัวอย่าง</button>
         </div>
       </div>
@@ -84,6 +86,77 @@
             <div class="summary"><span>รายเดือน</span><b id="monthlySummary">฿0</b></div>
           </div>
         </section>
+      </div>
+    </section>
+
+
+    <section id="profilePage" class="mt-5 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
+      <aside class="pixel-card bg-white p-5 dark:bg-slate-900">
+        <p class="font-pixel text-xs text-sky-600 dark:text-sky-300">PROFILE</p>
+        <h2 class="mt-3 text-3xl font-black">ไรเดอร์โปรไฟล์</h2>
+        <div class="mt-5 rounded-2xl border-4 border-slate-900 bg-gradient-to-br from-cyan-200 to-emerald-200 p-5 text-slate-900">
+          <span class="text-sm font-black uppercase tracking-widest">ผู้ใช้แบบเรียลไทม์</span>
+          <strong id="profileRiderCount" class="mt-2 block text-5xl font-black">0</strong>
+          <small id="riderPulse" class="font-bold">Live +0 ใน 5 วินาทีล่าสุด</small>
+        </div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <div class="summary"><span>กำไรเดือนนี้</span><b id="profileMonthlyProfit">฿0</b></div>
+          <div class="summary"><span>เดือนนี้ vs เดือนก่อน</span><b id="monthCompare">฿0</b></div>
+        </div>
+      </aside>
+
+      <section class="pixel-card bg-white p-5 dark:bg-slate-900">
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p class="font-pixel text-xs text-emerald-600 dark:text-emerald-300">📊 MONTHLY PROFIT</p>
+            <h2 class="mt-2 text-2xl font-black">กำไร 6 เดือนย้อนหลัง</h2>
+          </div>
+          <span class="rounded-full border-2 border-slate-900 bg-amber-100 px-3 py-1 text-sm font-black text-slate-900">เขียว = กำไร / แดง = ขาดทุน</span>
+        </div>
+        <div id="monthlyBars" class="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-6"></div>
+      </section>
+    </section>
+
+    <section class="mt-5 grid gap-5 xl:grid-cols-2">
+      <section class="pixel-card bg-white p-5 dark:bg-slate-900">
+        <p class="font-pixel text-xs text-violet-600 dark:text-violet-300">📈 30 DAYS TREND</p>
+        <h2 class="mt-2 text-2xl font-black">แนวโน้มกำไรรายวัน</h2>
+        <svg viewBox="0 0 300 120" class="mt-5 h-56 w-full rounded-2xl border-4 border-slate-900 bg-slate-950 p-3" preserveAspectRatio="none">
+          <polyline id="dailyTrend" fill="none" stroke="#34d399" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="0,110 300,110"></polyline>
+        </svg>
+        <div class="mt-4 grid gap-3 sm:grid-cols-3">
+          <div class="summary"><span>สูงสุด</span><b id="trendHigh">฿0</b></div>
+          <div class="summary"><span>เฉลี่ย</span><b id="trendAvg">฿0</b></div>
+          <div class="summary"><span>วันทำงาน</span><b id="trendDays">0 วัน</b></div>
+        </div>
+      </section>
+
+      <section class="pixel-card bg-white p-5 dark:bg-slate-900">
+        <p class="font-pixel text-xs text-rose-600 dark:text-rose-300">📅 MONTH HEAT MAP</p>
+        <h2 class="mt-2 text-2xl font-black">ปฏิทินรายเดือน</h2>
+        <div class="mt-4 grid grid-cols-7 gap-2 text-center text-xs font-black text-slate-500"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div>
+        <div id="monthHeatmap" class="mt-2 grid grid-cols-7 gap-2"></div>
+        <p class="mt-4 text-sm font-bold text-slate-600 dark:text-slate-300">สีเขียว = มีกำไร, สีแดง = ขาดทุน และสีเข้มขึ้นตามจำนวนเงิน</p>
+      </section>
+    </section>
+
+    <section id="goalsPage" class="mt-5 pixel-card bg-white p-5 dark:bg-slate-900">
+      <p class="font-pixel text-xs text-orange-600 dark:text-orange-300">🎯 PROFIT GOALS</p>
+      <h2 class="mt-2 text-2xl font-black">ตั้งเป้าหมายกำไร</h2>
+      <form id="goalForm" class="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+        <label>เป้ารายวัน (บาท)<input id="dailyGoal" type="number" min="0" step="1" class="input"></label>
+        <label>เป้ารายเดือน (บาท)<input id="monthlyGoal" type="number" min="0" step="1" class="input"></label>
+        <button class="pixel-btn bg-orange-300">บันทึกเป้า</button>
+      </form>
+      <div class="mt-5 space-y-4">
+        <div>
+          <div class="mb-2 flex justify-between font-black"><span id="dailyGoalText">รายวัน: ฿0 / ฿0</span></div>
+          <div class="goal-track"><div id="dailyGoalBar" class="goal-bar bg-emerald-400"></div></div>
+        </div>
+        <div>
+          <div class="mb-2 flex justify-between font-black"><span id="monthlyGoalText">รายเดือน: ฿0 / ฿0</span></div>
+          <div class="goal-track"><div id="monthlyGoalBar" class="goal-bar bg-sky-400"></div></div>
+        </div>
       </div>
     </section>
 
