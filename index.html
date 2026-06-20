@@ -1,127 +1,88 @@
 <!doctype html>
-<html lang="th" class="scroll-smooth">
+<html lang="th">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#6D5DFC" />
-  <title>Rider Profit Tracker</title>
+  <title>EREAL BOXSER Shop</title>
   <link rel="manifest" href="manifest.json" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  <script>
-    tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
-  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+Thai:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="text-slate-900 transition dark:bg-slate-950 dark:text-slate-100">
-  <section id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-white/90 px-4 py-8 backdrop-blur dark:bg-slate-950/90">
-    <div class="card w-full max-w-5xl p-5">
-      <div class="grid gap-6 lg:grid-cols-[.95fr_1.05fr] lg:items-center">
-        <div class="rounded-brand bg-gradient-to-br from-violet-100 via-white to-emerald-50 p-6 text-slate-900 shadow-sm">
-          <p class="kicker">RIDER PROFIT TRACKER</p>
-          <h1 class="mt-4 text-4xl font-black leading-tight">เข้าสู่ระบบไรเดอร์</h1>
-          <p class="mt-4 font-bold text-slate-600">ระบบบันทึกค่ารอบ ค่าน้ำมัน กำไร เป้าหมาย Export, Backup, PWA และ Cloud Sync</p>
-          <div class="mt-5 grid gap-3 text-sm font-black">
-            <div class="rounded-brand border border-slate-200 bg-white/80 p-3">👤 rider@demo.com / rider123</div>
-            <div class="rounded-brand border border-slate-200 bg-white/80 p-3">🛠️ admin@demo.com / admin123</div>
-          </div>
-        </div>
-        <form id="loginForm" class="space-y-4">
-          <div><p class="kicker">LOGIN</p><h2 class="mt-2 text-3xl font-black">ยืนยันตัวตน</h2></div>
-          <label>อีเมล<input id="loginEmail" type="email" class="input" value="rider@demo.com" required></label>
-          <label>รหัสผ่าน<input id="loginPassword" type="password" class="input" value="rider123" required></label>
-          <button class="btn btn-primary w-full">🔐 เข้าสู่ระบบ</button>
-          <button id="googleLoginBtn" type="button" class="btn w-full">G Login Google / Cloud Sync</button>
-          <button id="quickAdminBtn" type="button" class="btn w-full">ทดลองเข้าโหมดแอดมิน</button>
-        </form>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#home" aria-label="กลับหน้าหลัก"><span class="brand-main">EREAL</span><span>BOXSER</span></a>
+    <nav class="top-actions">
+      <button class="pill user-pill"><span class="avatar">🥊</span><span id="username">cvoppy</span></button>
+      <button id="logoutBtn" class="pill">ออกจากระบบ</button>
+      <a href="#cart" class="icon-btn" aria-label="ตะกร้าสินค้า">🛒<b id="cartBadge" class="badge hidden">0</b></a>
+      <button id="themeToggle" class="icon-btn" aria-label="สลับธีม">☼</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="home" class="page active">
+      <div class="hero-wrap">
+        <button id="prevHero" class="slide-btn left" aria-label="ก่อนหน้า">←</button>
+        <div class="hero-card" id="heroCard"></div>
+        <button id="nextHero" class="slide-btn right" aria-label="ถัดไป">→</button>
+      </div>
+
+      <section class="stats-grid" aria-label="สถิติร้านค้า">
+        <article class="stat-box"><small>ผู้ใช้งานทั้งหมด</small><strong>ผู้ใช้งานทั้งหมด <span>4K</span></strong></article>
+        <article class="stat-box"><small>ผู้ใช้งานวันนี้</small><strong>ผู้ใช้งานวันนี้ <span>1.3K</span></strong></article>
+        <article class="stat-box"><small>ยอดซื้อทั้งหมด</small><strong>ยอดซื้อทั้งหมด <span>10K</span></strong></article>
+        <article class="stat-box"><small>ยอดขายวันนี้</small><strong>ยอดขายวันนี้ <span>420</span></strong></article>
+      </section>
+
+      <section id="productGrid" class="product-grid" aria-label="รายการสินค้า"></section>
+    </section>
+
+    <section id="topup" class="page narrow-page">
+      <h1 class="page-title">💳 เติมเงินและเพิ่มแต้ม</h1>
+      <div class="topup-card">
+        <input id="topupCode" class="field" placeholder="ลิงค์อั่งเปาๆ" />
+        <button id="topupBtn" class="pill primary">เติมเงิน</button>
+      </div>
+      <p id="walletText" class="wallet-text">ยอดเงินคงเหลือ ฿0.00</p>
+    </section>
+
+    <section id="orders" class="page">
+      <h1 class="page-title">รายการคำสั่งซื้อ</h1>
+      <div id="ordersList" class="orders-list"></div>
+    </section>
+
+    <section id="cart" class="page">
+      <h1 class="page-title">ตะกร้าสินค้า</h1>
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-summary">
+        <strong>ราคารวมทั้งหมด <span id="cartTotal">฿ 0.00</span></strong>
+        <button id="checkoutBtn" class="pill primary">🧾 สั่งซื้อทั้งหมด</button>
+      </div>
+      <div class="bottom-links">
+        <a class="soft-link" href="#topup">🐷 เติมเงิน</a>
+        <a class="pill" href="#orders">💬 คำสั่งซื้อ</a>
+      </div>
+    </section>
+  </main>
+
+  <div id="productModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-panel">
+      <button id="closeModal" class="modal-close" aria-label="ปิด">×</button>
+      <img id="modalImg" class="modal-img" alt="">
+      <h2 id="modalTitle"></h2>
+      <p id="modalDesc"></p>
+      <div class="modal-line"><strong id="modalPrice"></strong><span id="modalStock"></span></div>
+      <div class="buy-row">
+        <input id="modalQty" class="field" type="number" min="1" value="1" />
+        <button id="addCartBtn" class="pill">🛒 หยิบใส่ตะกร้า</button>
+        <button id="buyNowBtn" class="pill">☑ สั่งซื้อ</button>
       </div>
     </div>
-  </section>
+  </div>
 
-  <main class="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-    <header id="dashboard" class="hero-panel card relative p-5">
-      <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <p class="kicker">MODERN RIDER DASHBOARD</p>
-          <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-5xl">Rider Profit Tracker</h1>
-          <p class="mt-2 max-w-2xl text-slate-600 dark:text-slate-300">หน้าเดียวจบ: เพิ่มงาน ดูกำไร ตั้งเป้า และสำรองข้อมูลได้รวดเร็วบนมือถือ</p>
-        </div>
-        <div class="quick-actions lg:min-w-[420px]">
-          <div class="soft-chip px-4 py-2 font-black"><span id="currentUserName">Guest</span><br><small id="currentUserRole">ยังไม่เข้าสู่ระบบ</small></div>
-          <select id="themeMode" class="input max-w-[160px]"><option value="auto">Auto</option><option value="light">Light</option><option value="dark">Dark</option></select>
-          <button id="installBtn" class="btn hidden">📲 ติดตั้ง</button>
-          <button id="syncBtn" class="btn">☁️ Sync</button>
-          <button id="logoutBtn" class="btn btn-danger">🚪 ออก</button>
-          <a href="#profilePage" class="btn">👤 โปรไฟล์</a><a href="#goalsPage" class="btn">🎯 เป้า</a><a id="adminNav" href="#adminPage" class="btn hidden">🛠️ แอดมิน</a>
-          <button id="sampleBtn" class="btn">✨ ตัวอย่าง</button>
-        </div>
-      </div>
-    </header>
-    <nav class="app-nav" aria-label="เมนูหลัก">
-      <a href="#dashboard">ภาพรวม</a>
-      <a href="#jobForm">เพิ่มงาน</a>
-      <a href="#jobsSection">รายการ</a>
-      <a href="#goalsPage">เป้าหมาย</a>
-      <a href="#profilePage">โปรไฟล์</a>
-      <a href="#toolsSection">เครื่องมือ</a>
-    </nav>
-
-    <section class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <article class="stat-card"><span>รายรับวันนี้</span><strong id="todayRevenue">฿0</strong><small id="todayProfit">กำไร ฿0</small></article>
-      <article class="stat-card"><span>รายรับสัปดาห์นี้</span><strong id="weekRevenue">฿0</strong><small id="weekProfit">กำไร ฿0</small></article>
-      <article class="stat-card"><span>รายรับเดือนนี้</span><strong id="monthRevenue">฿0</strong><small id="monthProfit">กำไร ฿0</small></article>
-      <article class="stat-card"><span>กำไรสุทธิ</span><strong id="netProfit">฿0</strong><small>รวมทุกงาน</small></article>
-      <article class="stat-card"><span>จำนวนงานทั้งหมด</span><strong id="totalJobs">0</strong><small>งาน</small></article>
-      <article class="stat-card"><span>ระยะทางรวม</span><strong id="totalKm">0</strong><small>กม.</small></article>
-      <article class="stat-card"><span>ค่าน้ำมันรวม</span><strong id="totalFuel">฿0</strong><small>ทุกงาน</small></article>
-      <article class="stat-card"><span>ราคาน้ำมันล่าสุด</span><strong id="fuelHeadline">กำลังโหลด...</strong><small id="fuelUpdated">Real-time API</small></article>
-    </section>
-
-    <section class="mt-4 grid gap-4 lg:grid-cols-[1.05fr_.95fr]">
-      <form id="jobForm" class="card p-5">
-        <div class="mb-4 flex items-center justify-between gap-3"><h2 class="section-title">➕ เพิ่ม/แก้ไขงานส่งของ</h2><button type="button" id="ocrBtn" class="btn btn-success text-sm">📸 อ่านจากรูป</button></div>
-        <input id="editingId" type="hidden">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <label>วันที่<input id="jobDate" type="date" class="input" required></label>
-          <label>เวลา<input id="jobTime" type="time" class="input"></label>
-          <label>ชื่องาน/ลูกค้า<input id="jobName" class="input" placeholder="เช่น Grab Food - สีลม" required></label>
-          <label>ค่ารอบ (บาท)<input id="fare" type="number" min="0" step="0.01" class="input" required></label>
-          <label>ระยะทาง (กม.)<input id="distance" type="number" min="0" step="0.01" class="input" required></label>
-          <label>อัตราสิ้นเปลือง (กม./ลิตร)<input id="efficiency" type="number" min="1" step="0.1" value="40" class="input" required></label>
-          <label>ราคาน้ำมัน/ลิตร<input id="fuelPrice" type="number" min="0" step="0.01" class="input" required></label>
-        </div>
-        <button id="saveJobBtn" class="btn btn-primary mt-5 w-full">✅ บันทึกค่ารอบ</button>
-      </form>
-
-      <div id="toolsSection" class="space-y-4">
-        <section class="card p-5"><h2 class="section-title">⛽ คำนวณการเติมน้ำมัน</h2><div class="mt-4 grid gap-3 sm:grid-cols-3"><label>งบเติม<input id="fillBudget" type="number" class="input" value="200"></label><label>ราคาลิตร<input id="fillPrice" type="number" class="input"></label><label>กินน้ำมัน<input id="fillEff" type="number" class="input" value="40"></label></div><div id="fillResult" class="mt-4 rounded-brand border border-slate-200 bg-amber-50 p-4 font-bold dark:bg-slate-800">เติมแล้ววิ่งได้ประมาณ 0 กม.</div></section>
-        <section class="card p-5"><div class="flex items-center justify-between"><h2 class="section-title">📤 Export / Backup</h2></div><div class="mt-4 grid gap-2 sm:grid-cols-2"><button id="excelBtn" class="btn btn-success">Export Excel</button><button id="pdfBtn" class="btn btn-danger">Export PDF</button><button id="backupBtn" class="btn">Backup JSON</button><button id="importBtn" class="btn">Import JSON</button></div></section>
-      </div>
-    </section>
-
-    <section id="profilePage" class="mt-5 grid gap-5 xl:grid-cols-[.85fr_1.15fr]">
-      <aside class="card p-5"><p class="kicker">PROFILE</p><h2 class="mt-3 text-3xl font-black">ไรเดอร์โปรไฟล์</h2><div class="mt-4 grid gap-3 rounded-brand border border-slate-200 bg-amber-50 p-4 dark:bg-slate-800 sm:grid-cols-2"><label>ชื่อผู้ใช้<input id="profileName" class="input"></label><label>เบอร์โทร<input id="profilePhone" class="input"></label><label>ทะเบียนรถ<input id="profileVehicle" class="input"></label><label>ประเภทรถ<input id="profileVehicleType" class="input" placeholder="มอเตอร์ไซค์"></label><label>รุ่นรถ<input id="profileVehicleModel" class="input"></label><label>อัตราสิ้นเปลืองน้ำมัน<input id="profileEfficiency" type="number" class="input"></label><label>เป้าหมายรายวัน<input id="profileDailyGoal" type="number" class="input"></label><label>เป้าหมายรายเดือน<input id="profileMonthlyGoal" type="number" class="input"></label><button id="saveProfileBtn" class="btn btn-primary sm:col-span-2">💾 บันทึกโปรไฟล์</button></div></aside>
-      <section class="card p-5"><p class="kicker">📊 MONTHLY PROFIT</p><h2 class="mt-2 text-2xl font-black">กำไร 6 เดือนย้อนหลัง</h2><div id="monthlyBars" class="mt-5 grid grid-cols-3 gap-3 sm:grid-cols-6"></div></section>
-    </section>
-
-    <section class="mt-5 grid gap-5 xl:grid-cols-2">
-      <section class="card p-5"><p class="kicker">📈 STATISTICS</p><h2 class="mt-2 text-2xl font-black">สถิติ</h2><div class="mt-4 grid gap-3 sm:grid-cols-2"><div class="summary"><span>รายได้เฉลี่ยต่อวัน</span><b id="avgDay">฿0</b></div><div class="summary"><span>รายได้เฉลี่ยต่อสัปดาห์</span><b id="avgWeek">฿0</b></div><div class="summary"><span>รายได้เฉลี่ยต่อเดือน</span><b id="avgMonth">฿0</b></div><div class="summary"><span>งานเฉลี่ยต่อวัน</span><b id="avgJobsDay">0</b></div><div class="summary"><span>กิโลเมตรเฉลี่ยต่อวัน</span><b id="avgKmDay">0 กม.</b></div></div></section>
-      <section class="card p-5"><p class="kicker">📈 30 DAYS TREND</p><h2 class="mt-2 text-2xl font-black">แนวโน้มกำไรรายวัน</h2><div id="trendEmpty" class="empty-state hidden">📊 ยังไม่มีข้อมูล<br><small>เพิ่มงานแรกเพื่อเริ่มดูสถิติ</small></div><svg id="trendChart" viewBox="0 0 300 120" class="mt-5 h-56 w-full rounded-brand border border-slate-200 bg-slate-950 p-3" preserveAspectRatio="none"><polyline id="dailyTrend" fill="none" stroke="#22C55E" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" points="0,110 300,110"></polyline></svg></section>
-    </section>
-
-    <section id="goalsPage" class="mt-5 card p-5"><p class="kicker">🎯 PROFIT GOALS</p><h2 class="mt-2 text-2xl font-black">ตั้งเป้าหมายกำไร</h2><form id="goalForm" class="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end"><label>เป้ารายวัน (บาท)<input id="dailyGoal" type="number" min="0" step="1" class="input"></label><label>เป้ารายเดือน (บาท)<input id="monthlyGoal" type="number" min="0" step="1" class="input"></label><button class="btn btn-warning">บันทึกเป้า</button></form><div class="mt-5 space-y-4"><div><div class="mb-2 flex justify-between font-black"><span id="dailyGoalText">รายวัน: ฿0 / ฿0</span></div><div class="goal-track"><div id="dailyGoalBar" class="goal-bar"></div></div><p id="dailyGoalHint" class="goal-hint"></p></div><div><div class="mb-2 flex justify-between font-black"><span id="monthlyGoalText">รายเดือน: ฿0 / ฿0</span></div><div class="goal-track"><div id="monthlyGoalBar" class="goal-bar"></div></div><p id="monthlyGoalHint" class="goal-hint"></p></div></div></section>
-
-    <section id="adminPage" class="mt-5 hidden card p-5"><p class="kicker">ADMIN BACK OFFICE</p><h2 class="mt-2 text-2xl font-black">หลังบ้านผู้ดูแลระบบ</h2><div class="mt-4 grid gap-3 md:grid-cols-3"><div class="summary"><span>ผู้ใช้ทั้งหมด</span><b id="adminUserCount">0</b></div><div class="summary"><span>งานทั้งหมดในระบบ</span><b id="adminJobCount">0</b></div><div class="summary"><span>กำไรรวมทุกโปรไฟล์</span><b id="adminProfitTotal">฿0</b></div></div><div class="mt-5 overflow-x-auto"><table class="w-full min-w-[760px] text-left text-sm"><thead><tr><th>ผู้ใช้</th><th>บทบาท</th><th>อีเมล</th><th>โทร</th><th>ทะเบียน</th><th>จำนวนงาน</th><th>กำไรรวม</th></tr></thead><tbody id="adminRows"></tbody></table></div></section>
-
-    <section id="jobsSection" class="mt-5 card p-5"><div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h2 class="section-title">🧾 รายการงาน</h2><div class="flex flex-wrap gap-2"><input id="searchInput" class="input min-w-[240px]" placeholder="ค้นหาวันที่ / ชื่องาน"><button id="clearBtn" class="btn btn-danger text-xs">ล้างข้อมูล</button></div></div><div class="overflow-x-auto"><table class="w-full min-w-[900px] text-left text-sm"><thead><tr><th>วันที่</th><th>ชื่องาน</th><th>ค่ารอบ</th><th>ระยะทาง</th><th>ค่าน้ำมัน</th><th>กำไรสุทธิ</th><th>จัดการ</th></tr></thead><tbody id="jobRows"></tbody></table></div></section>
-  </main>
-  <input id="imageInput" type="file" accept="image/*" class="hidden"><input id="importFile" type="file" accept="application/json,.json" class="hidden">
+  <div id="toast" class="toast hidden"></div>
   <script src="app.js" defer></script>
 </body>
 </html>
